@@ -1,0 +1,17 @@
+name = "waba-telegram-bridge"
+main = "worker.js"
+compatibility_date = "2024-07-30"
+
+[[kv_namespaces]]
+binding = "MAP_STORE"
+id = "<akan diisi setelah membuat KV>" # <to be filled after creating KV> 
+
+[vars]
+WHATSAPP_ACCESS_TOKEN = "YOUR_WA_TOKEN"
+WHATSAPP_PHONE_NUMBER_ID = "YOUR_WA_PHONE_ID"
+WHATSAPP_VERIFY_TOKEN = "YOUR_WA_VERIFY_TOKEN"
+TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+TELEGRAM_ADMIN_GROUP_ID = "-123456789" # Ganti dengan ID grup / Replace with group ID
+GEMINI_API_KEY = "" # Ganti dengan Gemini Api Key / Replace with Gemini Api Key
+
+
