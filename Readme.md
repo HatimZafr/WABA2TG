@@ -63,8 +63,8 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
    cd waba-telegram-bridge
    ```
 9. Edit wrangler.toml
-   ID: Isi variabel sesuai konfigurasi:
-   EN: Fill environment variables accordingly:
+   **ID:** Isi variabel sesuai konfigurasi:
+   **EN:** Fill environment variables accordingly:
 
 ```bash
 name = "waba-telegram-bridge"
@@ -85,8 +85,8 @@ GEMINI_API_KEY = "" # Ganti dengan Gemini Api Key / Replace with Gemini Api Key
 ```
 
 wrangler login
-ID: Ikuti proses login di browser.
-EN: Follow the login process in the browser.
+**ID:** Ikuti proses login di browser.
+**EN:** Follow the login process in the browser.
 
 4. Buat KV Namespace / Create KV Namespace
 
@@ -94,14 +94,14 @@ EN: Follow the login process in the browser.
    wrangler kv namespace create "MAP_STORE"
    ```
 
-   ID: Salin id yang muncul, tempel ke wrangler.toml.
+   **ID:** Salin id yang muncul, tempel ke wrangler.toml.
    EN: Copy the returned id and paste into wrangler.toml.
 
 5. Deploy
    ```bash
    wrangler deploy
    ```
-   ID: Hasil akan muncul seperti:
+   **ID:** Hasil akan muncul seperti:
    EN: The output will look like:
 
 ```bash
@@ -117,29 +117,29 @@ Konfigurasi Webhook / Webhook Setup
     -d '{"url":"https://waba-telegram-bridge.<subdomain>.workers.dev/webhook/telegram"}'
    ```
 
-   ID: Ganti <TELEGRAM_BOT_TOKEN> dan <subdomain> dengan milikmu.
-   EN: Replace <TELEGRAM_BOT_TOKEN> and <subdomain> with yours.
+   **ID:** Ganti <TELEGRAM_BOT_TOKEN> dan <subdomain> dengan milikmu.
+   **EN:** Replace <TELEGRAM_BOT_TOKEN> and <subdomain> with yours.
 
 2. Set Webhook WhatsApp
-   ID: Di Meta Developer Dashboard → Webhooks masukkan URL:
-   EN: On Meta Developer Dashboard → Webhooks, enter URL:
+   **ID:** Di Meta Developer Dashboard → Webhooks masukkan URL:
+   **EN:** On Meta Developer Dashboard → Webhooks, enter URL:
 
 ```bash
 https://waba-telegram-bridge.<subdomain>.workers.dev/webhook/whatsapp
 ```
 
-ID: Masukkan verify token sama seperti di wrangler.toml.
-EN: Use the same verify token as in wrangler.toml.
+**ID:** Masukkan verify token sama seperti di wrangler.toml.
+**EN:** Use the same verify token as in wrangler.toml.
 
 Testing
-ID: Kirim pesan ke nomor WhatsApp → pesan muncul di Telegram.
-EN: Send message to WhatsApp number → message appears in Telegram.
+**ID:** Kirim pesan ke nomor WhatsApp → pesan muncul di Telegram.
+**EN:** Send message to WhatsApp number → message appears in Telegram.
 
-ID: Balas di Telegram (thread atau /reply <nomor> <pesan>) → terkirim ke WhatsApp.
-EN: Reply in Telegram (thread or /reply <number> <message>) → delivered to WhatsApp.
+**ID:** Balas di Telegram (thread atau /reply <nomor> <pesan>) → terkirim ke WhatsApp.
+**EN:** Reply in Telegram (thread or /reply <number> <message>) → delivered to WhatsApp.
 
-ID: Pesan WA otomatis ditandai read setelah dibalas.
-EN: WhatsApp message automatically marked as read after reply.
+**ID:** Pesan WA otomatis ditandai read setelah dibalas.
+**EN:** WhatsApp message automatically marked as read after reply.
 
 Struktur Project / Project Structure
 
@@ -163,7 +163,7 @@ Saya bisa sertakan **di sini** jika mau, supaya README langsung lengkap dengan k
 
 MIT License
 
-Copyright (c) 2025 <Your Name>
+Copyright (c) 2025 Hatim Zafr
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
