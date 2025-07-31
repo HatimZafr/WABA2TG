@@ -1,160 +1,141 @@
-README.md (final bilingual dengan worker.js dan LICENSE)
-markdown
-Copy
-Edit
-
 # WABA ↔ Telegram Bridge (Cloudflare Worker)
 
-**ID:** Bridge untuk menghubungkan **WhatsApp Business API (WABA)** dengan **Telegram**.  
-**EN:** A bridge that connects **WhatsApp Business API (WABA)** with **Telegram**.
+A bridge that connects **WhatsApp Business API (WABA)** with **Telegram**.
 
-Menerima pesan WhatsApp → kirim ke Telegram, dan balasan dari Telegram → terkirim ke WhatsApp.  
 Receive messages from WhatsApp → send to Telegram, and replies from Telegram → sent to WhatsApp.
 
-Jika grup Telegram menggunakan **Forum Mode**, setiap kontak WhatsApp akan otomatis memiliki **thread sendiri**.  
 If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically gets its own **thread**.
 
 ---
 
-## Fitur / Features
+## Features
 
-- **ID:** Pesan WhatsApp otomatis diteruskan ke Telegram, balasan Telegram terkirim ke WhatsApp.  
-  **EN:** WhatsApp messages automatically forwarded to Telegram, Telegram replies sent to WhatsApp.
-- **ID:** Pesan WhatsApp tidak langsung ditandai terbaca, baru setelah dibalas dari Telegram.  
-  **EN:** WhatsApp messages are not marked as read until replied from Telegram.
-- **ID:** Mendukung grup Telegram dengan mode Forum (tiap kontak WhatsApp = 1 thread).  
-  **EN:** Supports Telegram Forum Groups (each WhatsApp contact = 1 thread).
+- WhatsApp messages automatically forwarded to Telegram, Telegram replies sent to WhatsApp.
+- WhatsApp messages are not marked as read until replied from Telegram.
+- Supports Telegram Forum Groups (each WhatsApp contact = 1 thread).
 
 ---
 
-## Teknologi / Technology
+## Technology
 
-- **ID:** [Cloudflare Workers](https://developers.cloudflare.com/workers/) untuk serverless hosting.  
-  **EN:** [Cloudflare Workers](https://developers.cloudflare.com/workers/) for serverless hosting.
-- **ID:** [Cloudflare KV](https://developers.cloudflare.com/workers/runtime-apis/kv/) untuk menyimpan mapping nomor ↔ thread.  
-  **EN:** [Cloudflare KV](https://developers.cloudflare.com/workers/runtime-apis/kv/) to store number ↔ thread mapping.
-- **ID:** WhatsApp Cloud API & Telegram Bot API.  
-  **EN:** WhatsApp Cloud API & Telegram Bot API.
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/) for serverless hosting.
+- [Cloudflare KV](https://developers.cloudflare.com/workers/runtime-apis/kv/) to store number ↔ thread mapping.
+- WhatsApp Cloud API & Telegram Bot API.
 
 ---
 
-## Prasyarat / Prerequisites
+## Prerequisites
 
-1. **ID:** Akun Cloudflare (gratis).  
-   **EN:** Cloudflare account (free).
-2. **ID:** Node.js & npm terinstal.  
-   **EN:** Node.js & npm installed.
-3. **ID:** VSCode (opsional untuk edit).  
-   **EN:** VSCode (optional for editing).
-4. **ID:** WhatsApp Cloud API (dapatkan `WHATSAPP_ACCESS_TOKEN` dan `WHATSAPP_PHONE_NUMBER_ID` dari [Meta Developer Dashboard](https://developers.facebook.com/)).  
-   **EN:** WhatsApp Cloud API (get `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` from [Meta Developer Dashboard](https://developers.facebook.com/)).
-5. **ID:** Bot Telegram (dapatkan token dari [@BotFather](https://t.me/BotFather)).  
-   **EN:** Telegram Bot (get token from [@BotFather](https://t.me/BotFather)).
-6. **ID:** ID grup Telegram (pakai bot seperti [@getidsbot](https://t.me/getidsbot)).  
-   **EN:** Telegram group ID (use bot like [@getidsbot](https://t.me/getidsbot)).
-7. **ID:** wrangler CLI:  
-    **EN:** wrangler CLI:
-   ```bash
-   npm install -g wrangler
-   ```
-8. Clone Repository
-   ```bash
-   git clone https://github.com/<username>/waba-telegram-bridge.git
-   cd waba-telegram-bridge
-   ```
-9. Edit wrangler.toml
-   **ID:** Isi variabel sesuai konfigurasi:
-   **EN:** Fill environment variables accordingly:
+1.  Cloudflare account (free).
+2.  Node.js & npm installed.
+3.  VSCode (optional for editing).
+4.  WhatsApp Cloud API (get `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` from [Meta Developer Dashboard](https://developers.facebook.com/)).
+5.  Telegram Bot (get token from [@BotFather](https://t.me/BotFather)).
+6.  Telegram group ID (use bot like [@getidsbot](https://t.me/getidsbot)).
+7.  wrangler CLI:
+    ```bash
+    npm install -g wrangler
+    ```
+8.  Clone Repository
+    ```bash
+    git clone [https://github.com/](https://github.com/)<username>/waba-telegram-bridge.git
+    cd waba-telegram-bridge
+    ```
+9.  Edit wrangler.toml
+    Fill environment variables accordingly:
 
-```bash
-name = "waba-telegram-bridge"
-main = "worker.js"
-compatibility_date = "2024-07-30"
+    ```bash
+    name = "waba-telegram-bridge"
+    main = "worker.js"
+    compatibility_date = "2024-07-30"
 
-[[kv_namespaces]]
-binding = "MAP_STORE"
-id = "<akan diisi setelah membuat KV>" # <to be filled after creating KV>
+    [[kv_namespaces]]
+    binding = "MAP_STORE"
+    id = "<to be filled after creating KV>"
 
-[vars]
-WHATSAPP_ACCESS_TOKEN = "YOUR_WA_TOKEN"
-WHATSAPP_PHONE_NUMBER_ID = "YOUR_WA_PHONE_ID"
-WHATSAPP_VERIFY_TOKEN = "YOUR_WA_VERIFY_TOKEN"
-TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-TELEGRAM_ADMIN_GROUP_ID = "123456789" # Ganti dengan ID grup / Replace with group ID 3. Login Cloudflare
-GEMINI_API_KEY = "" # Ganti dengan Gemini Api Key / Replace with Gemini Api Key
-```
+    [vars]
+    WHATSAPP_ACCESS_TOKEN = "YOUR_WA_TOKEN"
+    WHATSAPP_PHONE_NUMBER_ID = "YOUR_WA_PHONE_ID"
+    WHATSAPP_VERIFY_TOKEN = "YOUR_WA_VERIFY_TOKEN"
+    TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+    TELEGRAM_ADMIN_GROUP_ID = "123456789" # Replace with your group ID
+    GEMINI_API_KEY = "" # Replace with Gemini Api Key
+    ```
 
-wrangler login
-**ID:** Ikuti proses login di browser.
-**EN:** Follow the login process in the browser.
+10. Login Cloudflare
 
-4. Buat KV Namespace / Create KV Namespace
+    ```bash
+    wrangler login
+    ```
 
-   ```bash
-   wrangler kv namespace create "MAP_STORE"
-   ```
+    Follow the login process in the browser.
 
-   **ID:** Salin id yang muncul, tempel ke wrangler.toml.
-   EN: Copy the returned id and paste into wrangler.toml.
+11. Create KV Namespace
 
-5. Deploy
-   ```bash
-   wrangler deploy
-   ```
-   **ID:** Hasil akan muncul seperti:
-   EN: The output will look like:
+    ```bash
+    wrangler kv namespace create "MAP_STORE"
+    ```
 
-```bash
-https://waba-telegram-bridge.<subdomain>.workers.dev
-Konfigurasi Webhook / Webhook Setup
-```
+    Copy the returned id and paste into wrangler.toml.
 
-1. Set Webhook Telegram
+12. Deploy
 
-   ```bash
-   curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
-    -H "Content-Type: application/json" \
-    -d '{"url":"https://waba-telegram-bridge.<subdomain>.workers.dev/webhook/telegram"}'
-   ```
+    ```bash
+    wrangler deploy
+    ```
 
-   **ID:** Ganti <TELEGRAM_BOT_TOKEN> dan <subdomain> dengan milikmu.
-   **EN:** Replace <TELEGRAM_BOT_TOKEN> and <subdomain> with yours.
+    The output will look like:
 
-2. Set Webhook WhatsApp
-   **ID:** Di Meta Developer Dashboard → Webhooks masukkan URL:
-   **EN:** On Meta Developer Dashboard → Webhooks, enter URL:
+    ```bash
+    https://waba-telegram-bridge.<subdomain>.workers.dev
+    ```
 
-```bash
-https://waba-telegram-bridge.<subdomain>.workers.dev/webhook/whatsapp
-```
+---
 
-**ID:** Masukkan verify token sama seperti di wrangler.toml.
-**EN:** Use the same verify token as in wrangler.toml.
+## Webhook Setup
 
-Testing
-**ID:** Kirim pesan ke nomor WhatsApp → pesan muncul di Telegram.
-**EN:** Send message to WhatsApp number → message appears in Telegram.
+1.  Set Webhook Telegram
 
-**ID:** Balas di Telegram (thread atau /reply <nomor> <pesan>) → terkirim ke WhatsApp.
-**EN:** Reply in Telegram (thread or /reply <number> <message>) → delivered to WhatsApp.
+    ```bash
+    curl -X POST "[https://api.telegram.org/bot](https://api.telegram.org/bot)<TELEGRAM_BOT_TOKEN>/setWebhook" \
+     -H "Content-Type: application/json" \
+     -d '{"url":"https://waba-telegram-bridge.<subdomain>.workers.dev/webhook/telegram"}'
+    ```
 
-**ID:** Pesan WA otomatis ditandai read setelah dibalas.
-**EN:** WhatsApp message automatically marked as read after reply.
+    Replace `<TELEGRAM_BOT_TOKEN>` and `<subdomain>` with yours.
 
-Struktur Project / Project Structure
+2.  Set Webhook WhatsApp
+    On Meta Developer Dashboard → Webhooks, enter URL:
+
+    ```bash
+    https://waba-telegram-bridge.<subdomain>.workers.dev/webhook/whatsapp
+    ```
+
+    Use the same verify token as in wrangler.toml.
+
+---
+
+## Testing
+
+- Send message to WhatsApp number → message appears in Telegram.
+- Reply in Telegram (thread or `/reply <number> <message>`) → delivered to WhatsApp.
+- WhatsApp message automatically marked as read after reply.
+
+---
+
+## Project Structure
 
 ```bash
 waba-telegram-bridge/
-├── wrangler.toml # konfigurasi Cloudflare / Cloudflare config
-├── worker.js # kode utama / main code
-└── package.json # opsional / optional
-```
+├── wrangler.toml # Cloudflare config
+├── worker.js # main code
+└── package.json # optional
 
 ---
 
 ## **worker.js (final)**
 
-_(kode worker final sudah mendukung KV untuk mapping & delay read)_  
+_(kode worker final sudah mendukung KV untuk mapping & delay read)_
 Saya bisa sertakan **di sini** jika mau, supaya README langsung lengkap dengan kode.
 
 ---
@@ -182,3 +163,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
