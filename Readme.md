@@ -38,7 +38,7 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
     ```
 8.  Clone Repository
     ```bash
-    git clone [https://github.com/](https://github.com/)<username>/waba-telegram-bridge.git
+    git clone [https://github.com/](https://github.com/)HatimZafr/waba-telegram-bridge.git
     cd waba-telegram-bridge
     ```
 9.  Edit wrangler.toml
