@@ -81,6 +81,7 @@ WHATSAPP_PHONE_NUMBER_ID = "YOUR_WA_PHONE_ID"
 WHATSAPP_VERIFY_TOKEN = "YOUR_WA_VERIFY_TOKEN"
 TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
 TELEGRAM_ADMIN_GROUP_ID = "123456789" # Ganti dengan ID grup / Replace with group ID 3. Login Cloudflare
+GEMINI_API_KEY = "" # Ganti dengan Gemini Api Key / Replace with Gemini Api Key
 ```
 
 wrangler login
