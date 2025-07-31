@@ -56,21 +56,17 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
     **EN:** wrangler CLI:
    ```bash
    npm install -g wrangler
-   Langkah Setup / Setup Steps
    ```
 8. Clone Repository
-   bash
-   Copy
-   Edit
+   ```bash
    git clone https://github.com/<username>/waba-telegram-bridge.git
    cd waba-telegram-bridge
+   ```
 9. Edit wrangler.toml
    ID: Isi variabel sesuai konfigurasi:
    EN: Fill environment variables accordingly:
 
-toml
-Copy
-Edit
+```bash
 name = "waba-telegram-bridge"
 main = "worker.js"
 compatibility_date = "2024-07-30"
@@ -85,42 +81,41 @@ WHATSAPP_PHONE_NUMBER_ID = "YOUR_WA_PHONE_ID"
 WHATSAPP_VERIFY_TOKEN = "YOUR_WA_VERIFY_TOKEN"
 TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
 TELEGRAM_ADMIN_GROUP_ID = "123456789" # Ganti dengan ID grup / Replace with group ID 3. Login Cloudflare
-bash
-Copy
-Edit
+```
+
 wrangler login
 ID: Ikuti proses login di browser.
 EN: Follow the login process in the browser.
 
 4. Buat KV Namespace / Create KV Namespace
-   bash
-   Copy
-   Edit
-   wrangler kv:namespace create "MAP_STORE"
+
+   ```bash
+   wrangler kv namespace create "MAP_STORE"
+   ```
+
    ID: Salin id yang muncul, tempel ke wrangler.toml.
    EN: Copy the returned id and paste into wrangler.toml.
 
 5. Deploy
-   bash
-   Copy
-   Edit
-   wrangler publish
+   ```bash
+   wrangler deploy
+   ```
    ID: Hasil akan muncul seperti:
    EN: The output will look like:
 
-arduino
-Copy
-Edit
+```bash
 https://waba-telegram-bridge.<subdomain>.workers.dev
 Konfigurasi Webhook / Webhook Setup
+```
 
 1. Set Webhook Telegram
-   bash
-   Copy
-   Edit
+
+   ```bash
    curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
     -H "Content-Type: application/json" \
     -d '{"url":"https://waba-telegram-bridge.<subdomain>.workers.dev/webhook/telegram"}'
+   ```
+
    ID: Ganti <TELEGRAM_BOT_TOKEN> dan <subdomain> dengan milikmu.
    EN: Replace <TELEGRAM_BOT_TOKEN> and <subdomain> with yours.
 
@@ -128,10 +123,10 @@ Konfigurasi Webhook / Webhook Setup
    ID: Di Meta Developer Dashboard → Webhooks masukkan URL:
    EN: On Meta Developer Dashboard → Webhooks, enter URL:
 
-bash
-Copy
-Edit
+```bash
 https://waba-telegram-bridge.<subdomain>.workers.dev/webhook/whatsapp
+```
+
 ID: Masukkan verify token sama seperti di wrangler.toml.
 EN: Use the same verify token as in wrangler.toml.
 
@@ -146,37 +141,13 @@ ID: Pesan WA otomatis ditandai read setelah dibalas.
 EN: WhatsApp message automatically marked as read after reply.
 
 Struktur Project / Project Structure
-arduino
-Copy
-Edit
+
+```bash
 waba-telegram-bridge/
 ├── wrangler.toml # konfigurasi Cloudflare / Cloudflare config
 ├── worker.js # kode utama / main code
 └── package.json # opsional / optional
-Script Deploy (Opsional) / Optional Deploy Script
-Tambahkan ke package.json:
-Add to package.json:
-
-json
-Copy
-Edit
-{
-"scripts": {
-"deploy": "wrangler publish"
-}
-}
-Jalankan / Run:
-
-bash
-Copy
-Edit
-npm run deploy
-License
-MIT
-
-yaml
-Copy
-Edit
+```
 
 ---
 
