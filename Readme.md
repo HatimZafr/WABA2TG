@@ -115,11 +115,42 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
 
 ---
 
-## Testing
+## Usage & Testing
+
+### Basic Messaging
 
 - Send message to WhatsApp number → message appears in Telegram.
 - Reply in Telegram (thread or `/reply <number> <message>`) → delivered to WhatsApp.
 - WhatsApp message automatically marked as read after reply.
+
+### AI Features
+
+By default, the AI will respond to all incoming WhatsApp text messages.
+
+- **Toggle AI for a Specific Contact:**
+  To enable or disable the AI for a particular WhatsApp contact from Telegram, use the following command in your Telegram admin group:
+
+  ```
+  /ai <PHONE_NUMBER> on
+  /ai <PHONE_NUMBER> off
+  ```
+
+  Example: `/ai 6281234567890 on`
+
+- **Set Global AI Instruction:**
+  You can provide a general instruction or persona for the AI to follow. This instruction will be prepended to every prompt sent to the Gemini AI. Use this command in your Telegram admin group:
+
+  ```
+  /instruction <YOUR_INSTRUCTION_TEXT>
+  ```
+
+  Example: `/instruction You are a helpful customer support bot that is always polite and concise.`
+
+  To view the current global instruction:
+
+  ```
+  /instruction
+  ```
 
 ---
 
@@ -130,8 +161,7 @@ waba-telegram-bridge/
 ├── wrangler.toml # Cloudflare config
 ├── worker.js # main code
 └── package.json # optional
-
----
+```
 
 ## **worker.js (final)**
 
@@ -140,9 +170,7 @@ Saya bisa sertakan **di sini** jika mau, supaya README langsung lengkap dengan k
 
 ---
 
-## **LICENSE (MIT)**
-
-MIT License
+## LICENSE (MIT)
 
 Copyright (c) 2025 Hatim Zafr
 
@@ -163,4 +191,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+```
+----
 ```
