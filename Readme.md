@@ -188,15 +188,15 @@ By default, the AI will respond to all incoming WhatsApp text messages.
   /instruction
   ```
 
-  -**Status Command**
+- **Status Command**
   In Forum Thread:
 
 ```bash
 /status
 ```
 
--**Shows status (AI enabled/disabled) for that contact.**
-In Regular Group:
+- **Shows status (AI enabled/disabled) for that contact.**
+  In Regular Group:
 
 ```bash
 /status <PHONE_NUMBER>
