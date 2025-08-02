@@ -67,17 +67,14 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
     ```
 9.  **Edit `wrangler.toml`:**
     Open the `wrangler.toml` file in your project directory and fill in the environment variables with the tokens and IDs you obtained in the previous steps:
-
         ```bash
         name = "waba-telegram-bridge"
         main = "worker.js"
         compatibility_date = "2024-07-30"
-
         [[d1_databases]]
         binding = ""
         database_name = ""
         database_id = "<akan diisi setelah membuat D1>" <to be filled after creating D1>
-
         [vars]
         WHATSAPP_ACCESS_TOKEN = "YOUR_WA_TOKEN"
         WHATSAPP_PHONE_NUMBER_ID = "YOUR_WA_PHONE_ID"
@@ -87,12 +84,12 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
         GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
         ```
 
-10. **Login to Cloudflare:**
+11. **Login to Cloudflare:**
     ```bash
     wrangler login
     ```
     Follow the browser-based login process to authenticate `wrangler` with your Cloudflare account.
-11. **Create D1 Database:**  
+12. **Create D1 Database:**  
      Cloudflare D1 is used to store the mapping between WhatsApp numbers and Telegram threads.
 
     ```bash
@@ -102,7 +99,7 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
     After running this command, wrangler will output an id.
     Copy this id and paste it into the [[d1_databases]] section of your wrangler.toml file.\*\*
 
-12. **Deploy Your Worker:**
+13. **Deploy Your Worker:**
     ```bash
     wrangler deploy
     ```
