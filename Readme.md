@@ -100,11 +100,65 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
     After running this command, wrangler will output an id.
     Copy this id and paste it into the [[d1_databases]] section of your wrangler.toml file.\*\*
 
-12. **Deploy Your Worker:**
-    ```bash
-    wrangler deploy
-    ```
-    This command will deploy your worker to Cloudflare. The output will provide you with the public URL of your worker, which will look something like `https://waba-telegram-bridge.<subdomain>.workers.dev`. Keep this URL handy.
+## Database Migration (Cloudflare D1)
+
+The following steps will create and apply a database migration to initialize the tables:
+
+### 1. Create the First Migration
+
+```bash
+wrangler d1 migrations create whatsapp-telegram-bridge init
+```
+
+This command will create a migrations/ folder and a 0001_init.sql file.
+
+### 2. Edit 0001_init.sql
+
+Fill the file with the following table structures:
+
+```sql
+
+-- 0001_init.sql
+CREATE TABLE IF NOT EXISTS contacts (
+  wa_id TEXT PRIMARY KEY,
+  thread_id TEXT,
+  last_message_id TEXT,
+  ai_enabled INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS threads (
+  thread_id TEXT PRIMARY KEY,
+  wa_id TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (wa_id) REFERENCES contacts(wa_id)
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_contacts_thread_id ON contacts(thread_id);
+CREATE INDEX IF NOT EXISTS idx_threads_wa_id ON threads(wa_id);
+```
+
+### 3. Apply the Migration
+
+```bash
+wrangler d1 migrations apply whatsapp-telegram-bridge
+```
+
+Wrangler will detect the new migration (0001_init.sql) and prompt for confirmation.
+
+12. # **Deploy Your Worker:**
+
+        ```bash
+        wrangler deploy
+        ```
+        This command will deploy your worker to Cloudflare. The output will provide you with the public URL of your worker, which will look something like `https://waba-telegram-bridge.<subdomain>.workers.dev`. Keep this URL handy.
 
 ---
 
