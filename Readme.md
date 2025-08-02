@@ -67,7 +67,7 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
     ```
 9.  **Edit `wrangler.toml`:**
     Open the `wrangler.toml` file in your project directory and fill in the environment variables with the tokens and IDs you obtained in the previous steps:
-        ```bash
+    ```bash
         name = "waba-telegram-bridge"
         main = "worker.js"
         compatibility_date = "2024-07-30"
@@ -82,7 +82,7 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
         TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
         TELEGRAM_ADMIN_GROUP_ID = "123456789" # Replace with your Telegram Group Chat ID (e.g., -1001234567890)
         GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
-        ```
+    ```
 
 11. **Login to Cloudflare:**
     ```bash
