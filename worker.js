@@ -1,9 +1,6 @@
 export default {
   async fetch(request, env) {
     try {
-      // Initialize database tables on first run
-      await initializeDatabase(env);
-
       const url = new URL(request.url);
 
       if (url.pathname === "/webhook/whatsapp") {
@@ -25,72 +22,21 @@ export default {
 };
 
 // =============================
-// DATABASE INITIALIZATION
+// CACHE (in-memory)
 // =============================
-async function initializeDatabase(env) {
-  try {
-    // Create tables if they don't exist
-    await env.DB.prepare(
-      `
-      CREATE TABLE IF NOT EXISTS contacts (
-        wa_id TEXT PRIMARY KEY,
-        thread_id TEXT,
-        last_message_id TEXT,
-        ai_enabled INTEGER DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `
-    ).run();
-
-    await env.DB.prepare(
-      `
-      CREATE TABLE IF NOT EXISTS threads (
-        thread_id TEXT PRIMARY KEY,
-        wa_id TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (wa_id) REFERENCES contacts(wa_id)
-      )
-    `
-    ).run();
-
-    await env.DB.prepare(
-      `
-      CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `
-    ).run();
-
-    // Create indexes for better performance
-    await env.DB.prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_contacts_thread_id ON contacts(thread_id)
-    `
-    ).run();
-
-    await env.DB.prepare(
-      `
-      CREATE INDEX IF NOT EXISTS idx_threads_wa_id ON threads(wa_id)
-    `
-    ).run();
-  } catch (e) {
-    console.log(
-      "Database initialization (tables might already exist):",
-      e.message
-    );
-  }
-}
+const contactCache = new Map();
+const threadToWaCache = new Map();
+const waToThreadCache = new Map();
 
 // =============================
-// DATABASE HELPERS
+// DATABASE HELPERS (cached)
 // =============================
 async function getContact(env, waId) {
+  if (contactCache.has(waId)) return contactCache.get(waId);
   const result = await env.DB.prepare("SELECT * FROM contacts WHERE wa_id = ?")
     .bind(waId)
     .first();
+  if (result) contactCache.set(waId, result);
   return result;
 }
 
@@ -98,13 +44,14 @@ async function createOrUpdateContact(env, waId, data = {}) {
   const existing = await getContact(env, waId);
 
   if (existing) {
-    // Update existing contact
     const updateFields = [];
     const values = [];
 
     if (data.threadId !== undefined) {
       updateFields.push("thread_id = ?");
       values.push(data.threadId);
+      waToThreadCache.set(waId, data.threadId);
+      threadToWaCache.set(data.threadId, waId);
     }
     if (data.lastMessageId !== undefined) {
       updateFields.push("last_message_id = ?");
@@ -124,9 +71,9 @@ async function createOrUpdateContact(env, waId, data = {}) {
       )
         .bind(...values)
         .run();
+      contactCache.delete(waId); // refresh cache
     }
   } else {
-    // Create new contact
     await env.DB.prepare(
       `
       INSERT INTO contacts (wa_id, thread_id, last_message_id, ai_enabled)
@@ -140,24 +87,35 @@ async function createOrUpdateContact(env, waId, data = {}) {
         data.aiEnabled !== undefined ? (data.aiEnabled ? 1 : 0) : 1
       )
       .run();
+    contactCache.delete(waId);
   }
 }
 
 async function getThreadByWaId(env, waId) {
+  if (waToThreadCache.has(waId)) return waToThreadCache.get(waId);
   const result = await env.DB.prepare(
     "SELECT thread_id FROM contacts WHERE wa_id = ?"
   )
     .bind(waId)
     .first();
+  if (result?.thread_id) {
+    waToThreadCache.set(waId, result.thread_id);
+    threadToWaCache.set(result.thread_id, waId);
+  }
   return result?.thread_id;
 }
 
 async function getWaIdByThread(env, threadId) {
+  if (threadToWaCache.has(threadId)) return threadToWaCache.get(threadId);
   const result = await env.DB.prepare(
     "SELECT wa_id FROM threads WHERE thread_id = ?"
   )
     .bind(threadId)
     .first();
+  if (result?.wa_id) {
+    threadToWaCache.set(threadId, result.wa_id);
+    waToThreadCache.set(result.wa_id, threadId);
+  }
   return result?.wa_id;
 }
 
@@ -170,6 +128,8 @@ async function createThread(env, threadId, waId) {
     .bind(threadId, waId)
     .run();
 
+  waToThreadCache.set(waId, threadId);
+  threadToWaCache.set(threadId, waId);
   await createOrUpdateContact(env, waId, { threadId });
 }
 
@@ -195,7 +155,7 @@ async function setSetting(env, key, value) {
 
 async function isAiEnabled(env, waId) {
   const contact = await getContact(env, waId);
-  return contact ? contact.ai_enabled === 1 : true; // default enabled
+  return contact ? contact.ai_enabled === 1 : true;
 }
 
 async function setAiStatus(env, waId, enabled) {
@@ -220,7 +180,7 @@ let isForumGroup = false;
 let telegramInitialized = false;
 
 // =============================
-// WHATSAPP WEBHOOK
+// WEBHOOK HANDLERS
 // =============================
 async function verifyWhatsAppWebhook(url, env) {
   const mode = url.searchParams.get("hub.mode");
