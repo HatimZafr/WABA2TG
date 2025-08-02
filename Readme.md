@@ -22,7 +22,7 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
 ## Technology
 
 - [Cloudflare Workers](https://developers.cloudflare.com/workers/) for serverless hosting.
-- [Cloudflare KV](https://developers.cloudflare.com/workers/runtime-apis/kv/) to store number ↔ thread mapping, AI settings, and global instructions.
+- [Cloudflare D1 SQL](https://developers.cloudflare.com/workers/workers/d1/) to store number ↔ thread mapping, AI settings, and global instructions.
 - WhatsApp Cloud API & Telegram Bot API.
 - Google Gemini API for AI responses.
 
@@ -62,41 +62,46 @@ If the Telegram group uses **Forum Mode**, each WhatsApp contact automatically g
     ```
 8.  **Clone Repository:**
     ```bash
-    git clone [https://github.com/](https://github.com/)<username>/waba-telegram-bridge.git
+    git clone [https://github.com/](https://github.com/)HatimZafr/waba-telegram-bridge.git
     cd waba-telegram-bridge
     ```
 9.  **Edit `wrangler.toml`:**
     Open the `wrangler.toml` file in your project directory and fill in the environment variables with the tokens and IDs you obtained in the previous steps:
 
-    ```bash
-    name = "waba-telegram-bridge"
-    main = "worker.js"
-    compatibility_date = "2024-07-30"
+        ```bash
+        name = "waba-telegram-bridge"
+        main = "worker.js"
+        compatibility_date = "2024-07-30"
 
-    [[kv_namespaces]]
-    binding = "MAP_STORE"
-    id = "<to be filled after creating KV>" # This ID will be generated in the next step.
+        [[d1_databases]]
+        binding = ""
+        database_name = ""
+        database_id = "<akan diisi setelah membuat D1>" <to be filled after creating D1>
 
-    [vars]
-    WHATSAPP_ACCESS_TOKEN = "YOUR_WA_TOKEN"
-    WHATSAPP_PHONE_NUMBER_ID = "YOUR_WA_PHONE_ID"
-    WHATSAPP_VERIFY_TOKEN = "YOUR_WA_VERIFY_TOKEN" # Choose any random string, e.g., "mysecrettoken123"
-    TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-    TELEGRAM_ADMIN_GROUP_ID = "123456789" # Replace with your Telegram Group Chat ID (e.g., -1001234567890)
-    GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
-    ```
+        [vars]
+        WHATSAPP_ACCESS_TOKEN = "YOUR_WA_TOKEN"
+        WHATSAPP_PHONE_NUMBER_ID = "YOUR_WA_PHONE_ID"
+        WHATSAPP_VERIFY_TOKEN = "YOUR_WA_VERIFY_TOKEN" # Choose any random string, e.g., "mysecrettoken123"
+        TELEGRAM_BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+        TELEGRAM_ADMIN_GROUP_ID = "123456789" # Replace with your Telegram Group Chat ID (e.g., -1001234567890)
+        GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
+        ```
 
 10. **Login to Cloudflare:**
     ```bash
     wrangler login
     ```
     Follow the browser-based login process to authenticate `wrangler` with your Cloudflare account.
-11. **Create KV Namespace:**
-    Cloudflare KV (Key-Value) store is used to map WhatsApp numbers to Telegram threads.
+11. **Create D1 Database:**  
+     Cloudflare D1 is used to store the mapping between WhatsApp numbers and Telegram threads.
+
     ```bash
-    wrangler kv namespace create "MAP_STORE"
+        wrangler d1 create whatsapp-telegram-bridge
     ```
-    After running this command, `wrangler` will output an `id`. **Copy this `id` and paste it into the `id` field under `[[kv_namespaces]]` in your `wrangler.toml` file.**
+
+    After running this command, wrangler will output an id.
+    Copy this id and paste it into the [[d1_databases]] section of your wrangler.toml file.\*\*
+
 12. **Deploy Your Worker:**
     ```bash
     wrangler deploy
@@ -155,11 +160,18 @@ By default, the AI will respond to all incoming WhatsApp text messages.
   To enable or disable the AI for a particular WhatsApp contact from Telegram, use the following command in your Telegram admin group:
 
   ```
-  /ai <PHONE_NUMBER> on
-  /ai <PHONE_NUMBER> off
+  /ai on      → Enable AI for the contact of this thread
+  /ai off     → Disable AI for the contact of this thread
+  /status     → Show AI status for this thread's contact
   ```
 
-  Example: `/ai 6281234567890 on`
+- **AI Commands in Regular Groups (Manual Number Required)**
+
+  ```bash
+  /ai <PHONE_NUMBER> on
+  /ai <PHONE_NUMBER> off
+  /status <PHONE_NUMBER>
+  ```
 
 - **Set Global AI Instruction:**
   You can provide a general instruction or persona for the AI to follow. This instruction will be prepended to every prompt sent to the Gemini AI. Use this command in your Telegram admin group:
@@ -175,6 +187,22 @@ By default, the AI will respond to all incoming WhatsApp text messages.
   ```
   /instruction
   ```
+
+  -**Status Command**
+  In Forum Thread:
+
+```bash
+/status
+```
+
+-**Shows status (AI enabled/disabled) for that contact.**
+In Regular Group:
+
+```bash
+/status <PHONE_NUMBER>
+/status
+/status → Show all contacts' AI status
+```
 
 ---
 

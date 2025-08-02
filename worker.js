@@ -1,6 +1,9 @@
 export default {
   async fetch(request, env) {
     try {
+      // Initialize database tables on first run
+      await initializeDatabase(env);
+
       const url = new URL(request.url);
 
       if (url.pathname === "/webhook/whatsapp") {
@@ -22,7 +25,196 @@ export default {
 };
 
 // =============================
-// STATE & KV
+// DATABASE INITIALIZATION
+// =============================
+async function initializeDatabase(env) {
+  try {
+    // Create tables if they don't exist
+    await env.DB.prepare(
+      `
+      CREATE TABLE IF NOT EXISTS contacts (
+        wa_id TEXT PRIMARY KEY,
+        thread_id TEXT,
+        last_message_id TEXT,
+        ai_enabled INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+    ).run();
+
+    await env.DB.prepare(
+      `
+      CREATE TABLE IF NOT EXISTS threads (
+        thread_id TEXT PRIMARY KEY,
+        wa_id TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (wa_id) REFERENCES contacts(wa_id)
+      )
+    `
+    ).run();
+
+    await env.DB.prepare(
+      `
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+    ).run();
+
+    // Create indexes for better performance
+    await env.DB.prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_contacts_thread_id ON contacts(thread_id)
+    `
+    ).run();
+
+    await env.DB.prepare(
+      `
+      CREATE INDEX IF NOT EXISTS idx_threads_wa_id ON threads(wa_id)
+    `
+    ).run();
+  } catch (e) {
+    console.log(
+      "Database initialization (tables might already exist):",
+      e.message
+    );
+  }
+}
+
+// =============================
+// DATABASE HELPERS
+// =============================
+async function getContact(env, waId) {
+  const result = await env.DB.prepare("SELECT * FROM contacts WHERE wa_id = ?")
+    .bind(waId)
+    .first();
+  return result;
+}
+
+async function createOrUpdateContact(env, waId, data = {}) {
+  const existing = await getContact(env, waId);
+
+  if (existing) {
+    // Update existing contact
+    const updateFields = [];
+    const values = [];
+
+    if (data.threadId !== undefined) {
+      updateFields.push("thread_id = ?");
+      values.push(data.threadId);
+    }
+    if (data.lastMessageId !== undefined) {
+      updateFields.push("last_message_id = ?");
+      values.push(data.lastMessageId);
+    }
+    if (data.aiEnabled !== undefined) {
+      updateFields.push("ai_enabled = ?");
+      values.push(data.aiEnabled ? 1 : 0);
+    }
+
+    if (updateFields.length > 0) {
+      updateFields.push("updated_at = CURRENT_TIMESTAMP");
+      values.push(waId);
+
+      await env.DB.prepare(
+        `UPDATE contacts SET ${updateFields.join(", ")} WHERE wa_id = ?`
+      )
+        .bind(...values)
+        .run();
+    }
+  } else {
+    // Create new contact
+    await env.DB.prepare(
+      `
+      INSERT INTO contacts (wa_id, thread_id, last_message_id, ai_enabled)
+      VALUES (?, ?, ?, ?)
+    `
+    )
+      .bind(
+        waId,
+        data.threadId || null,
+        data.lastMessageId || null,
+        data.aiEnabled !== undefined ? (data.aiEnabled ? 1 : 0) : 1
+      )
+      .run();
+  }
+}
+
+async function getThreadByWaId(env, waId) {
+  const result = await env.DB.prepare(
+    "SELECT thread_id FROM contacts WHERE wa_id = ?"
+  )
+    .bind(waId)
+    .first();
+  return result?.thread_id;
+}
+
+async function getWaIdByThread(env, threadId) {
+  const result = await env.DB.prepare(
+    "SELECT wa_id FROM threads WHERE thread_id = ?"
+  )
+    .bind(threadId)
+    .first();
+  return result?.wa_id;
+}
+
+async function createThread(env, threadId, waId) {
+  await env.DB.prepare(
+    `
+    INSERT OR REPLACE INTO threads (thread_id, wa_id) VALUES (?, ?)
+  `
+  )
+    .bind(threadId, waId)
+    .run();
+
+  await createOrUpdateContact(env, waId, { threadId });
+}
+
+async function getSetting(env, key) {
+  const result = await env.DB.prepare(
+    "SELECT value FROM settings WHERE key = ?"
+  )
+    .bind(key)
+    .first();
+  return result?.value;
+}
+
+async function setSetting(env, key, value) {
+  await env.DB.prepare(
+    `
+    INSERT OR REPLACE INTO settings (key, value, updated_at) 
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+  `
+  )
+    .bind(key, value)
+    .run();
+}
+
+async function isAiEnabled(env, waId) {
+  const contact = await getContact(env, waId);
+  return contact ? contact.ai_enabled === 1 : true; // default enabled
+}
+
+async function setAiStatus(env, waId, enabled) {
+  await createOrUpdateContact(env, waId, { aiEnabled: enabled });
+}
+
+async function getAllContacts(env) {
+  const result = await env.DB.prepare(
+    `
+    SELECT wa_id, ai_enabled, updated_at, thread_id 
+    FROM contacts 
+    ORDER BY updated_at DESC
+  `
+  ).all();
+  return result.results || [];
+}
+
+// =============================
+// STATE & CACHE
 // =============================
 let isForumGroup = false;
 let telegramInitialized = false;
@@ -58,7 +250,9 @@ async function handleWhatsAppWebhook(request, env) {
 
 async function processWhatsAppMessage(message, value, env) {
   const contactWaId = message.from;
-  await env.MAP_STORE.put(`lastMessage:${contactWaId}`, message.id);
+
+  // Update last message ID
+  await createOrUpdateContact(env, contactWaId, { lastMessageId: message.id });
 
   if (!telegramInitialized) {
     await checkGroupType(env);
@@ -67,11 +261,10 @@ async function processWhatsAppMessage(message, value, env) {
 
   let threadId = null;
   if (isForumGroup) {
-    threadId = await env.MAP_STORE.get(`contact:${contactWaId}`);
+    threadId = await getThreadByWaId(env, contactWaId);
     if (!threadId) {
       threadId = await createTelegramThread(contactWaId, value, env);
-      await env.MAP_STORE.put(`contact:${contactWaId}`, threadId);
-      await env.MAP_STORE.put(`thread:${threadId}`, contactWaId);
+      await createThread(env, threadId, contactWaId);
     }
   }
 
@@ -79,12 +272,11 @@ async function processWhatsAppMessage(message, value, env) {
   await forwardTextToTelegram(text, threadId, contactWaId, value, env);
 
   // === CEK AI ENABLED ===
-  const aiStatus = await env.MAP_STORE.get(`ai:${contactWaId}`);
-  const aiEnabled = aiStatus !== "off"; // default ON kecuali user set off
+  const aiEnabled = await isAiEnabled(env, contactWaId);
 
   if (aiEnabled && message.type === "text") {
     const globalInstruction =
-      (await env.MAP_STORE.get("global_instruction")) || "";
+      (await getSetting(env, "global_instruction")) || "";
     const prompt = globalInstruction
       ? `${globalInstruction}\n\nUser: ${text}`
       : text;
@@ -101,11 +293,9 @@ async function processWhatsAppMessage(message, value, env) {
       await forwardTextToWhatsApp(aiResponse, contactWaId, env);
 
       // === Tandai pesan terakhir sebagai read ===
-      const lastMessageId = await env.MAP_STORE.get(
-        `lastMessage:${contactWaId}`
-      );
-      if (lastMessageId) {
-        await markMessagesAsRead(contactWaId, lastMessageId, env);
+      const contact = await getContact(env, contactWaId);
+      if (contact?.last_message_id) {
+        await markMessagesAsRead(contactWaId, contact.last_message_id, env);
       }
     }
   }
@@ -132,20 +322,52 @@ async function processTelegramMessage(message, env) {
 
   // ==== PERINTAH AI ON/OFF ====
   if (message.text?.startsWith("/ai")) {
-    const [, number, state] = message.text.split(" ");
-    if (number && state) {
-      await env.MAP_STORE.put(
-        `ai:${number}`,
-        state.toLowerCase() === "on" ? "on" : "off"
-      );
-      await telegramRequest(env, "sendMessage", {
-        chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
-        text: `AI untuk ${number} sekarang ${state.toUpperCase()}`,
-      });
+    const parts = message.text.split(" ");
+    let contactWaId = null;
+    let state = null;
+
+    if (isForumGroup && message.message_thread_id) {
+      // Di forum thread, auto-detect nomor dari thread
+      contactWaId = await getWaIdByThread(env, message.message_thread_id);
+      state = parts[1]; // /ai on|off
+
+      if (!contactWaId) {
+        await telegramRequest(env, "sendMessage", {
+          chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
+          message_thread_id: message.message_thread_id,
+          text: "❌ Thread ini belum terhubung ke nomor WhatsApp",
+        });
+        return;
+      }
     } else {
+      // Di group biasa, perlu specify nomor
+      contactWaId = parts[1]; // /ai PHONE_NUMBER on|off
+      state = parts[2];
+    }
+
+    if (contactWaId && state) {
+      const enabled = state.toLowerCase() === "on";
+      await setAiStatus(env, contactWaId, enabled);
+
+      const responseText = `🤖 AI untuk ${contactWaId} sekarang ${state.toUpperCase()}`;
+      const params = {
+        chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
+        text: responseText,
+      };
+
+      if (isForumGroup && message.message_thread_id) {
+        params.message_thread_id = message.message_thread_id;
+      }
+
+      await telegramRequest(env, "sendMessage", params);
+    } else {
+      const usage = isForumGroup
+        ? "Usage: /ai on|off (dalam thread) atau /ai PHONE_NUMBER on|off"
+        : "Usage: /ai PHONE_NUMBER on|off";
+
       await telegramRequest(env, "sendMessage", {
         chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
-        text: "Usage: /ai PHONE_NUMBER on|off",
+        text: usage,
       });
     }
     return;
@@ -155,18 +377,138 @@ async function processTelegramMessage(message, env) {
   if (message.text?.startsWith("/instruction")) {
     const instr = message.text.replace("/instruction", "").trim();
     if (instr) {
-      await env.MAP_STORE.put("global_instruction", instr);
+      await setSetting(env, "global_instruction", instr);
       await telegramRequest(env, "sendMessage", {
         chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
         text: `Global instruction diset:\n${instr}`,
       });
     } else {
       const current =
-        (await env.MAP_STORE.get("global_instruction")) || "(kosong)";
+        (await getSetting(env, "global_instruction")) || "(kosong)";
       await telegramRequest(env, "sendMessage", {
         chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
         text: `Current instruction: ${current}`,
       });
+    }
+    return;
+  }
+
+  // ==== PERINTAH STATUS AI ====
+  if (message.text?.startsWith("/status")) {
+    const parts = message.text.split(" ");
+    let targetWaId = null;
+
+    if (parts.length > 1) {
+      // /status PHONE_NUMBER
+      targetWaId = parts[1];
+    } else if (isForumGroup && message.message_thread_id) {
+      // /status dalam thread (auto-detect nomor)
+      targetWaId = await getWaIdByThread(env, message.message_thread_id);
+    }
+
+    if (targetWaId) {
+      // Status untuk nomor spesifik
+      try {
+        const contact = await getContact(env, targetWaId);
+
+        if (contact) {
+          const aiStatus = contact.ai_enabled === 1 ? "🟢 ON" : "🔴 OFF";
+          const lastSeen = contact.updated_at
+            ? new Date(contact.updated_at).toLocaleString("id-ID", {
+                timeZone: "Asia/Jakarta",
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "Never";
+          const threadInfo = contact.thread_id
+            ? `Thread: ${contact.thread_id}`
+            : "No thread";
+
+          const responseText = `📱 <b>Status untuk ${targetWaId}:</b>\n\n🤖 AI: ${aiStatus}\n📅 Last seen: ${lastSeen}\n🧵 ${threadInfo}`;
+          const params = {
+            chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
+            text: responseText,
+            parse_mode: "HTML",
+          };
+
+          if (isForumGroup && message.message_thread_id) {
+            params.message_thread_id = message.message_thread_id;
+          }
+
+          await telegramRequest(env, "sendMessage", params);
+        } else {
+          const responseText = `❌ Nomor ${targetWaId} belum pernah mengirim pesan`;
+          const params = {
+            chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
+            text: responseText,
+          };
+
+          if (isForumGroup && message.message_thread_id) {
+            params.message_thread_id = message.message_thread_id;
+          }
+
+          await telegramRequest(env, "sendMessage", params);
+        }
+      } catch (e) {
+        console.error("Error getting contact status:", e);
+        await telegramRequest(env, "sendMessage", {
+          chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
+          text: `❌ Error getting status: ${e.message}`,
+        });
+      }
+    } else {
+      // Status semua nomor
+      try {
+        const allContacts = await getAllContacts(env);
+
+        if (allContacts.length === 0) {
+          await telegramRequest(env, "sendMessage", {
+            chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
+            text: "📱 Belum ada kontak yang terdaftar",
+          });
+          return;
+        }
+
+        let statusText = "📱 <b>Status AI Semua Kontak:</b>\n\n";
+        let onCount = 0;
+        let offCount = 0;
+
+        for (const contact of allContacts) {
+          const aiStatus = contact.ai_enabled === 1 ? "🟢" : "🔴";
+          const lastSeen = contact.updated_at
+            ? new Date(contact.updated_at).toLocaleDateString("id-ID", {
+                timeZone: "Asia/Jakarta",
+              })
+            : "Never";
+
+          statusText += `${aiStatus} <code>${contact.wa_id}</code> - ${lastSeen}\n`;
+
+          if (contact.ai_enabled === 1) onCount++;
+          else offCount++;
+        }
+
+        statusText += `\n📊 <b>Summary:</b>\n🟢 AI ON: ${onCount}\n🔴 AI OFF: ${offCount}\n\n`;
+        statusText += `<i>Usage:</i>\n<code>/status PHONE_NUMBER</code> - Detail nomor\n<code>/ai PHONE_NUMBER on|off</code> - Toggle AI`;
+
+        if (isForumGroup) {
+          statusText += `\n<code>/status</code> - Status dalam thread\n<code>/ai on|off</code> - Toggle AI dalam thread`;
+        }
+
+        await telegramRequest(env, "sendMessage", {
+          chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
+          text: statusText,
+          parse_mode: "HTML",
+        });
+      } catch (e) {
+        console.error("Error getting all contacts:", e);
+        await telegramRequest(env, "sendMessage", {
+          chat_id: env.TELEGRAM_ADMIN_GROUP_ID,
+          text: `❌ Error getting status: ${e.message}`,
+        });
+      }
     }
     return;
   }
@@ -178,7 +520,7 @@ async function processTelegramMessage(message, env) {
     threadId = message.message_thread_id;
     if (!threadId) return;
 
-    contactWaId = await env.MAP_STORE.get(`thread:${threadId}`);
+    contactWaId = await getWaIdByThread(env, threadId);
     console.log(`Thread ${threadId} → Contact: ${contactWaId}`);
 
     if (!contactWaId) {
@@ -189,8 +531,7 @@ async function processTelegramMessage(message, env) {
         if (match) {
           contactWaId = match[1];
           console.log("Recovered contact from topic name:", contactWaId);
-          await env.MAP_STORE.put(`thread:${threadId}`, contactWaId);
-          await env.MAP_STORE.put(`contact:${contactWaId}`, threadId);
+          await createThread(env, threadId, contactWaId);
         }
       }
       if (!contactWaId) {
@@ -221,11 +562,11 @@ async function processTelegramMessage(message, env) {
     try {
       await forwardTextToWhatsApp(message.text, contactWaId, env);
       console.log(`Telegram → WA: ${contactWaId} <= ${message.text}`);
-      const lastMessageId = await env.MAP_STORE.get(
-        `lastMessage:${contactWaId}`
-      );
-      if (lastMessageId)
-        await markMessagesAsRead(contactWaId, lastMessageId, env);
+
+      const contact = await getContact(env, contactWaId);
+      if (contact?.last_message_id) {
+        await markMessagesAsRead(contactWaId, contact.last_message_id, env);
+      }
     } catch (e) {
       console.error("WA Send Error:", e.message);
       await telegramRequest(env, "sendMessage", {
@@ -293,8 +634,7 @@ async function forwardTextToTelegram(
     if (String(e.message).includes("message thread not found")) {
       console.warn("Thread hilang, membuat ulang...");
       const newThreadId = await createTelegramThread(contactWaId, waValue, env);
-      await env.MAP_STORE.put(`contact:${contactWaId}`, newThreadId);
-      await env.MAP_STORE.put(`thread:${newThreadId}`, contactWaId);
+      await createThread(env, newThreadId, contactWaId);
       params.message_thread_id = newThreadId;
       await telegramRequest(env, "sendMessage", params);
     } else {
